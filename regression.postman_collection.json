@@ -1,0 +1,832 @@
+{
+  "info": {
+    "_postman_id": "5f0c9d2e-6a1b-4c3d-9e8f-0a1b2c3d4e5f",
+    "name": "Pet shop orders - regression",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "F1 - Register an order and calculate its reward points",
+      "item": [
+        {
+          "name": "Valid complete order → 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{runPrefix}}01\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2027\",\"loyaltyMember\":true,\"pickupMethod\":\"STORE_PICKUP\",\"orderTotal\":210.00,\"petCount\":3,\"adoptedPet\":false,\"subscription\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// New 6-digit prefix on every run so references never clash with a previous run",
+                  "pm.collectionVariables.set(\"runPrefix\", String(Math.floor(100000 + Math.random() * 900000)));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"OrderResponse structure\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.all.keys(\"id\", \"orderReference\", \"customerName\", \"storeCode\", \"loyaltySeason\", \"amountPerPet\", \"rewardPoints\", \"breakdown\", \"createdAt\");",
+                  "    pm.expect(body.breakdown).to.have.all.keys(\"loyalty\", \"pickup\", \"basket\", \"adoption\", \"subscription\");",
+                  "    pm.collectionVariables.set(\"happyReference\", body.orderReference);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "orderReference with 3 digits → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"123\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2027\",\"loyaltyMember\":true,\"pickupMethod\":\"STORE_PICKUP\",\"orderTotal\":210.00,\"petCount\":3,\"adoptedPet\":false,\"subscription\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Error schema\", function () { pm.expect(pm.response.json()).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Same orderReference as the happy path → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{happyReference}}\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2027\",\"loyaltyMember\":true,\"pickupMethod\":\"STORE_PICKUP\",\"orderTotal\":210.00,\"petCount\":3,\"adoptedPet\":false,\"subscription\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Error schema\", function () { pm.expect(pm.response.json()).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "C1: amount per pet 70.00 and 95 points → 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{runPrefix}}11\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2027\",\"loyaltyMember\":true,\"pickupMethod\":\"STORE_PICKUP\",\"orderTotal\":210.00,\"petCount\":3,\"adoptedPet\":false,\"subscription\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Result C1\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(Number(body.amountPerPet)).to.eql(70.0);",
+                  "    pm.expect(body.rewardPoints).to.eql(95);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "C2: amount per pet 69.99 and 30 points → 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{runPrefix}}12\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2027\",\"loyaltyMember\":false,\"pickupMethod\":\"PARCEL_LOCKER\",\"orderTotal\":209.97,\"petCount\":3,\"adoptedPet\":true,\"subscription\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Result C2\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(Number(body.amountPerPet)).to.eql(69.99);",
+                  "    pm.expect(body.rewardPoints).to.eql(30);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "C3: amount per pet 25.00 and 0 points → 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{runPrefix}}13\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2027\",\"loyaltyMember\":false,\"pickupMethod\":\"HOME_DELIVERY\",\"orderTotal\":100.00,\"petCount\":4,\"adoptedPet\":false,\"subscription\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Result C3\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(Number(body.amountPerPet)).to.eql(25.0);",
+                  "    pm.expect(body.rewardPoints).to.eql(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "C4: amount per pet 1000.00 and 120 points → 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{runPrefix}}14\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2027\",\"loyaltyMember\":true,\"pickupMethod\":\"STORE_PICKUP\",\"orderTotal\":1000.00,\"petCount\":1,\"adoptedPet\":true,\"subscription\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Result C4\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(Number(body.amountPerPet)).to.eql(1000.0);",
+                  "    pm.expect(body.rewardPoints).to.eql(120);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "C5: amount per pet 70.00 and 15 points → 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{runPrefix}}15\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2027\",\"loyaltyMember\":false,\"pickupMethod\":\"HOME_DELIVERY\",\"orderTotal\":209.99,\"petCount\":3,\"adoptedPet\":false,\"subscription\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Result C5\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(Number(body.amountPerPet)).to.eql(70.0);",
+                  "    pm.expect(body.rewardPoints).to.eql(15);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "petCount 0 → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{runPrefix}}21\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2027\",\"loyaltyMember\":true,\"pickupMethod\":\"STORE_PICKUP\",\"orderTotal\":210.00,\"petCount\":0,\"adoptedPet\":false,\"subscription\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Error schema\", function () { pm.expect(pm.response.json()).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "pickupMethod DRONE → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{runPrefix}}22\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2027\",\"loyaltyMember\":true,\"pickupMethod\":\"DRONE\",\"orderTotal\":210.00,\"petCount\":3,\"adoptedPet\":false,\"subscription\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Error schema\", function () { pm.expect(pm.response.json()).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "loyaltySeason 2026-2028 → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{runPrefix}}23\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2028\",\"loyaltyMember\":true,\"pickupMethod\":\"STORE_PICKUP\",\"orderTotal\":210.00,\"petCount\":3,\"adoptedPet\":false,\"subscription\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Error schema\", function () { pm.expect(pm.response.json()).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing loyaltyMember → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{runPrefix}}24\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2027\",\"pickupMethod\":\"STORE_PICKUP\",\"orderTotal\":210.00,\"petCount\":3,\"adoptedPet\":false,\"subscription\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Error schema\", function () { pm.expect(pm.response.json()).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Cross-cutting robustness",
+      "item": [
+        {
+          "name": "Malformed JSON → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{runPrefix}}31\"",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Error schema\", function () { pm.expect(pm.response.json()).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown route → 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/unknown-route",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "unknown-route"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Error schema\", function () { pm.expect(pm.response.json()).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unsupported method → 405",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 405\", function () { pm.response.to.have.status(405); });",
+                  "pm.test(\"Error schema\", function () { pm.expect(pm.response.json()).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Content-Type text/plain → 415",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "hello",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 415\", function () { pm.response.to.have.status(415); });",
+                  "pm.test(\"Error schema\", function () { pm.expect(pm.response.json()).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Decimal in integer field (petCount 2.5) → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderReference\":\"{{runPrefix}}32\",\"customerName\":\"Test Customer\",\"storeCode\":\"20000002\",\"loyaltySeason\":\"2026-2027\",\"loyaltyMember\":true,\"pickupMethod\":\"STORE_PICKUP\",\"orderTotal\":210.00,\"petCount\":2.5,\"adoptedPet\":false,\"subscription\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Error schema\", function () { pm.expect(pm.response.json()).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "happyReference",
+      "value": ""
+    },
+    {
+      "key": "runPrefix",
+      "value": "100000"
+    }
+  ]
+}

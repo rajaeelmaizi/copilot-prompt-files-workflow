@@ -1,0 +1,195 @@
+openapi: 3.0.3
+info:
+  title: Pet shop orders API
+  version: 1.0.0
+  description: Registers pet shop orders and calculates their loyalty reward points.
+paths:
+  /orders:
+    post:
+      summary: Register an order and calculate its reward points
+      operationId: registerOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+      responses:
+        '201':
+          description: Order registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: An order with the same orderReference already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Unknown route
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          description: Accept header not supported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Content-Type not supported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    OrderRequest:
+      type: object
+      required:
+        - orderReference
+        - customerName
+        - storeCode
+        - loyaltySeason
+        - loyaltyMember
+        - pickupMethod
+        - orderTotal
+        - petCount
+        - adoptedPet
+        - subscription
+      properties:
+        orderReference:
+          type: string
+          description: Required. 8 digits. Unique per order.
+          pattern: '^[0-9]{8}$'
+        customerName:
+          type: string
+          description: Required. Between 2 and 80 characters, not blank.
+          minLength: 2
+          maxLength: 80
+        storeCode:
+          type: string
+          description: Required. 8 digits.
+          pattern: '^[0-9]{8}$'
+        loyaltySeason:
+          type: string
+          description: Required. Format YYYY-YYYY; the second year is the first year plus one.
+          pattern: '^[0-9]{4}-[0-9]{4}$'
+        loyaltyMember:
+          type: boolean
+          description: Required.
+        pickupMethod:
+          type: string
+          description: Required. One of STORE_PICKUP, PARCEL_LOCKER, HOME_DELIVERY.
+          enum:
+            - STORE_PICKUP
+            - PARCEL_LOCKER
+            - HOME_DELIVERY
+        orderTotal:
+          type: number
+          description: Required. Decimal amount, greater than or equal to 0, at most 2 decimals.
+          minimum: 0
+          multipleOf: 0.01
+        petCount:
+          type: integer
+          description: Required. Between 1 and 15.
+          minimum: 1
+          maximum: 15
+        adoptedPet:
+          type: boolean
+          description: Required.
+        subscription:
+          type: boolean
+          description: Required.
+    OrderResponse:
+      type: object
+      required:
+        - id
+        - orderReference
+        - customerName
+        - storeCode
+        - loyaltySeason
+        - amountPerPet
+        - rewardPoints
+        - breakdown
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderReference:
+          type: string
+        customerName:
+          type: string
+        storeCode:
+          type: string
+        loyaltySeason:
+          type: string
+        amountPerPet:
+          type: number
+          description: orderTotal / petCount, rounded to 2 decimals (HALF_UP).
+        rewardPoints:
+          type: integer
+        breakdown:
+          type: object
+          required:
+            - loyalty
+            - pickup
+            - basket
+            - adoption
+            - subscription
+          properties:
+            loyalty:
+              type: integer
+            pickup:
+              type: integer
+            basket:
+              type: integer
+            adoption:
+              type: integer
+            subscription:
+              type: integer
+        createdAt:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - path
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
